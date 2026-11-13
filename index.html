@@ -7,8 +7,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="theme-color" content="#f4f6f9" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" id="tc" content="#f4f6f9">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="robots" content="noindex">
@@ -19,15 +18,27 @@
     --red: #dc2626; --red-soft: #fdecec; --amber: #d97706; --amber-soft: #fff4e0;
     --violet: #7c3aed; --violet-soft: #f1ebff;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0f1115; --card: #181b21; --text: #e8eaed; --muted: #9aa0a6; --line: #2a2e36;
-      --blue: #6b9bff; --blue-soft: #1c2740; --green: #4ade80; --green-soft: #15291d;
-      --red: #f87171; --red-soft: #321a1a; --amber: #fbbf24; --amber-soft: #302512;
-      --violet: #a78bfa; --violet-soft: #241d3a;
-    }
+  html[data-theme="dark"] {
+    --bg: #0f1115; --card: #181b21; --text: #e8eaed; --muted: #9aa0a6; --line: #2a2e36;
+    --blue: #6b9bff; --blue-soft: #1c2740; --green: #4ade80; --green-soft: #15291d;
+    --red: #f87171; --red-soft: #321a1a; --amber: #fbbf24; --amber-soft: #302512;
+    --violet: #a78bfa; --violet-soft: #241d3a;
   }
   * { box-sizing: border-box; }
+  html { color-scheme: light; } html[data-theme="dark"] { color-scheme: dark; }
+  body, .card, .day, button.refresh { transition: background-color .3s ease, border-color .3s ease, color .3s ease; }
+  /* Animasi muncul saat di-scroll */
+  .rv { opacity: 0; transform: translateY(22px) scale(.985); transition: opacity .55s ease, transform .55s cubic-bezier(.2,.7,.2,1); will-change: opacity, transform; }
+  .rv.in { opacity: 1; transform: none; }
+  .bars .b { transform-origin: bottom; }
+  .rv .bars .b { transform: scaleY(0); }
+  .rv.in .bars .b { transform: scaleY(1); transition: transform .7s cubic-bezier(.2,.7,.2,1) .15s; }
+  .rv .hbar .fill { transform: scaleX(0); transform-origin: left; }
+  .rv.in .hbar .fill { transform: scaleX(1); transition: transform .7s cubic-bezier(.2,.7,.2,1) .15s; }
+  @media (prefers-reduced-motion: reduce) {
+    .rv, .rv .bars .b, .rv .hbar .fill { opacity: 1; transform: none; transition: none; }
+  }
+  @media (max-width: 520px) { .hide-sm { display: none; } }
   body { margin: 0; background: var(--bg); color: var(--text);
          font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", sans-serif; }
   .wrap { max-width: 1080px; margin: 0 auto;
@@ -108,6 +119,13 @@
   @keyframes pulse { 50% { opacity: .3; } }
   footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 28px; }
 </style>
+<script>
+  (function () {
+    var t; try { t = localStorage.getItem('dashTheme'); } catch (e) {}
+    if (t !== 'light' && t !== 'dark') t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
 </head>
 <body>
 <div class="wrap" id="app"></div>
@@ -142,6 +160,42 @@
     render(DATA);
   }
 
+  // ====== TEMA ======
+  function theme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
+  function applyThemeColor() { var m = document.getElementById('tc'); if (m) m.setAttribute('content', theme() === 'dark' ? '#0f1115' : '#f4f6f9'); }
+  function toggleTheme() {
+    var t = theme() === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem('dashTheme', t); } catch (e) {}
+    applyThemeColor();
+    if (DATA) render(DATA);
+  }
+  applyThemeColor();
+
+  // ====== ANIMASI SAAT SCROLL ======
+  // Hanya dijalankan pada tampilan pertama; saat data diperbarui otomatis, isi langsung tampil tanpa berkedip.
+  var FIRST = true, IO = null;
+  function reveal() {
+    var els = document.querySelectorAll('#app .card, #app h2, #app .day, #app footer');
+    var i;
+    if (!FIRST || !('IntersectionObserver' in window)) {
+      for (i = 0; i < els.length; i++) els[i].classList.add('rv', 'in');
+      return;
+    }
+    FIRST = false;
+    if (IO) IO.disconnect();
+    IO = new IntersectionObserver(function (entries) {
+      var n = 0;
+      entries.forEach(function (en) {
+        if (!en.isIntersecting) return;
+        en.target.style.transitionDelay = (n++ * 70) + 'ms';   // muncul berurutan
+        en.target.classList.add('in');
+        IO.unobserve(en.target);
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+    for (i = 0; i < els.length; i++) { els[i].classList.add('rv'); IO.observe(els[i]); }
+  }
+
   function errBox(x) { return x && x.error ? '<div class="err">Gagal membaca data: ' + esc(x.error) + '</div>' : ''; }
 
   function kpiCard(lbl, val, note) {
@@ -173,7 +227,8 @@
     var jam = Number((d.generated || '12').slice(0, 2));
     var sapa = jam < 11 ? 'Selamat pagi' : jam < 15 ? 'Selamat siang' : jam < 18 ? 'Selamat sore' : 'Selamat malam';
     h += '<header><div><div class="sub">' + esc(d.todayLabel) + '</div><h1>' + sapa + ' 👋</h1></div>' +
-         '<div class="actions"><button class="refresh" onclick="toggleHide()" title="Sembunyikan / tampilkan saldo">' + (HIDE ? '👁 Tampilkan' : '🙈 Sembunyikan') + '</button>' +
+         '<div class="actions"><button class="refresh" onclick="toggleTheme()" title="Ganti tema terang / gelap">' + (theme() === 'dark' ? '☀️' : '🌙') + '<span class="hide-sm">' + (theme() === 'dark' ? ' Terang' : ' Gelap') + '</span></button>' +
+         '<button class="refresh" onclick="toggleHide()" title="Sembunyikan / tampilkan saldo">' + (HIDE ? '👁' : '🙈') + '<span class="hide-sm">' + (HIDE ? ' Tampilkan' : ' Sembunyikan') + '</span></button>' +
          '<button class="refresh" onclick="refresh(this)" title="Muat ulang">↻</button></div></header>';
 
     if (STALE) h += '<div class="stale">' + esc(STALE) + '</div>';
@@ -276,6 +331,7 @@
 
     h += '<footer><span class="live"></span>Otomatis diperbarui · terakhir dicek <span id="cek">' + esc(d.generated) + '</span> · <a href="#" onclick="showSetup();return false">Ganti koneksi</a></footer>';
     document.getElementById('app').innerHTML = h;
+    reveal();
   }
 
   function showSetup(msg) {
