@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dashboard</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#f4f6f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    --bg: #f4f6f9; --card: #ffffff; --text: #1f2328; --muted: #6b7280; --line: #e6e8eb;
+    --blue: #2563eb; --blue-soft: #e8efff; --green: #16a34a; --green-soft: #e7f6ec;
+    --red: #dc2626; --red-soft: #fdecec; --amber: #d97706; --amber-soft: #fff4e0;
+    --violet: #7c3aed; --violet-soft: #f1ebff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --card: #181b21; --text: #e8eaed; --muted: #9aa0a6; --line: #2a2e36;
+      --blue: #6b9bff; --blue-soft: #1c2740; --green: #4ade80; --green-soft: #15291d;
+      --red: #f87171; --red-soft: #321a1a; --amber: #fbbf24; --amber-soft: #302512;
+      --violet: #a78bfa; --violet-soft: #241d3a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", sans-serif; }
+  .wrap { max-width: 1080px; margin: 0 auto;
+          padding: calc(18px + env(safe-area-inset-top)) 14px calc(40px + env(safe-area-inset-bottom)); }
+  .setup { max-width: 420px; margin: 8vh auto 0; }
+  .setup label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 4px; }
+  .setup input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+                 background: var(--bg); color: var(--text); font-size: 14px; }
+  .setup button { width: 100%; margin-top: 16px; padding: 11px; border: 0; border-radius: 10px;
+                  background: var(--blue); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
+  .stale { background: var(--amber-soft); color: var(--amber); border-radius: 10px; padding: 8px 12px; font-size: 12px; margin-bottom: 12px; }
+  footer a { color: var(--muted); }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -.2px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  button.refresh { border: 1px solid var(--line); background: var(--card); color: var(--text);
+                   border-radius: 10px; padding: 7px 12px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .actions { display: flex; gap: 8px; flex: none; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 26px 2px 10px; }
+  .grid { display: grid; gap: 12px; }
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .two { grid-template-columns: 1fr; }
+  @media (min-width: 760px) { .kpis { grid-template-columns: repeat(4, 1fr); } .two { grid-template-columns: 1fr 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+  .card h3 { margin: 0 0 10px; font-size: 14px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .card h3 small { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .total { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 20px;
+           margin-bottom: 12px; background: var(--blue-soft); border-color: transparent; }
+  .total .lbl { font-size: 12px; color: var(--muted); }
+  .total .big { font-size: 30px; font-weight: 800; letter-spacing: -.5px; color: var(--blue); font-variant-numeric: tabular-nums; }
+  .total .parts { font-size: 13px; font-variant-numeric: tabular-nums; }
+  .total .parts span { color: var(--muted); }
+  .kpi .lbl { color: var(--muted); font-size: 12px; }
+  .kpi .val { font-size: 22px; font-weight: 700; margin: 2px 0; letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
+  .kpi .note { font-size: 12px; color: var(--muted); }
+  .up { color: var(--red); } .down { color: var(--green); }
+  .pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 99px; font-weight: 600; white-space: nowrap; }
+  .p-red { background: var(--red-soft); color: var(--red); } .p-amber { background: var(--amber-soft); color: var(--amber); }
+  .p-blue { background: var(--blue-soft); color: var(--blue); } .p-green { background: var(--green-soft); color: var(--green); }
+  .p-gray { background: var(--line); color: var(--muted); }
+  ul.list { list-style: none; margin: 0; padding: 0; }
+  ul.list li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
+  ul.list li:first-child { border-top: 0; padding-top: 2px; }
+  .time { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--blue); min-width: 44px; }
+  .grow { flex: 1; min-width: 0; }
+  .grow .t { overflow-wrap: anywhere; } .grow .m { color: var(--muted); font-size: 12px; }
+  .empty { color: var(--muted); font-size: 13px; padding: 4px 0; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; flex: none; }
+  /* Minggu */
+  .week { display: grid; grid-template-columns: repeat(7, minmax(132px, 1fr)); gap: 8px; overflow-x: auto; padding-bottom: 6px;
+          scroll-snap-type: x mandatory; }
+  .day { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; scroll-snap-align: start; min-height: 120px; }
+  .day.today { border-color: var(--blue); box-shadow: inset 0 3px 0 var(--blue); }
+  .day .dh { font-weight: 700; font-size: 13px; margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .day .busy { font-size: 11px; color: var(--muted); font-weight: 400; }
+  .ev { font-size: 12px; border-radius: 8px; padding: 5px 7px; margin-bottom: 5px; overflow-wrap: anywhere; }
+  .ev.j { background: var(--blue-soft); } .ev.j b { color: var(--blue); }
+  .ev.d { background: var(--amber-soft); } .ev.d b { color: var(--amber); }
+  /* Grafik */
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 130px; padding-top: 8px; }
+  .bars .b { flex: 1; background: var(--blue); border-radius: 3px 3px 0 0; min-height: 2px; position: relative; opacity: .85; }
+  .bars .b.zero { background: var(--line); opacity: 1; }
+  .bars .b.today { background: var(--violet); opacity: 1; }
+  .bars .b:hover::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+     background: var(--text); color: var(--card); font-size: 11px; padding: 2px 6px; border-radius: 6px; white-space: nowrap; margin-bottom: 4px; }
+  .axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .hbar { margin: 8px 0; }
+  .hbar .row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 3px; gap: 8px; }
+  .hbar .row span:last-child { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .hbar .track { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .hbar .fill { height: 100%; border-radius: 99px; background: var(--blue); }
+  .tx-amt { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .ring { display: flex; align-items: center; gap: 14px; }
+  .ring svg { flex: none; }
+  .err { background: var(--red-soft); color: var(--red); border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-top: 8px; }
+  .live { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--green); margin-right: 6px;
+          animation: pulse 2s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 28px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+  var DATA = null, STALE = '';
+  var CFG = { url: '', token: '' };
+  try { CFG = JSON.parse(localStorage.getItem('dashCfg')) || CFG; } catch (e) {}
+
+  // Ambil data dari Apps Script. Kode rahasia dikirim di badan permintaan (bukan di alamat URL).
+  function api() {
+    return fetch(CFG.url, { method: 'POST', body: JSON.stringify({ token: CFG.token }), redirect: 'follow' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (d.error) throw new Error(d.error); return d; });
+  }
+  function keep(d) { try { localStorage.setItem('dashData', JSON.stringify(d)); } catch (e) {} }
+
+  var fmt = function (n) { return Math.round(n || 0).toLocaleString('en-US'); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var cap = function (s) { s = String(s || ''); return s.charAt(0).toUpperCase() + s.slice(1); };
+  var PRIO = { Tinggi: 'p-red', Sedang: 'p-amber', Rendah: 'p-green' };
+  var PRIO_DOT = { Tinggi: 'var(--red)', Sedang: 'var(--amber)', Rendah: 'var(--green)' };
+
+  var HIDE = false;
+  try { HIDE = localStorage.getItem('hideSaldo') === '1'; } catch (e) {}
+  // Nilai saldo: disamarkan kalau mode sembunyi aktif
+  function sal(text) { return HIDE ? '••••••' : text; }
+  function toggleHide() {
+    HIDE = !HIDE;
+    try { localStorage.setItem('hideSaldo', HIDE ? '1' : '0'); } catch (e) {}
+    render(DATA);
+  }
+
+  function errBox(x) { return x && x.error ? '<div class="err">Gagal membaca data: ' + esc(x.error) + '</div>' : ''; }
+
+  function kpiCard(lbl, val, note) {
+    return '<div class="card kpi"><div class="lbl">' + lbl + '</div><div class="val">' + val + '</div><div class="note">' + (note || '&nbsp;') + '</div></div>';
+  }
+
+  function hbars(items, color, prefix) {
+    if (!items || !items.length) return '<div class="empty">Belum ada data.</div>';
+    var max = items[0].v || 1;
+    return items.slice(0, 6).map(function (it) {
+      return '<div class="hbar"><div class="row"><span>' + esc(cap(it.nama)) + '</span><span>' + (prefix || '') + fmt(it.v) + '</span></div>' +
+             '<div class="track"><div class="fill" style="width:' + Math.max(3, 100 * it.v / max) + '%;background:' + color + '"></div></div></div>';
+    }).join('');
+  }
+
+  function taskLi(t) {
+    var badge = t.terlambat ? 'p-red' : (t.label === 'Hari ini' ? 'p-amber' : 'p-gray');
+    return '<li><span class="dot" style="background:' + (PRIO_DOT[t.prioritas] || 'var(--muted)') + '"></span>' +
+      '<div class="grow"><div class="t">' + esc(t.tugas) + '</div><div class="m">#' + t.id + ' · ' + esc(t.kategori) + '</div></div>' +
+      (t.label ? '<span class="pill ' + badge + '">' + esc(t.label) + '</span>' : '') + '</li>';
+  }
+
+  function render(d) {
+    DATA = d;
+    var k = d.keuangan || {}, td = d.todo || {}, h = '';
+    var today = d.minggu && d.minggu[0] ? d.minggu[0] : { jadwal: [], deadline: [] };
+
+    // Header
+    var jam = Number((d.generated || '12').slice(0, 2));
+    var sapa = jam < 11 ? 'Selamat pagi' : jam < 15 ? 'Selamat siang' : jam < 18 ? 'Selamat sore' : 'Selamat malam';
+    h += '<header><div><div class="sub">' + esc(d.todayLabel) + '</div><h1>' + sapa + ' 👋</h1></div>' +
+         '<div class="actions"><button class="refresh" onclick="toggleHide()" title="Sembunyikan / tampilkan saldo">' + (HIDE ? '👁 Tampilkan' : '🙈 Sembunyikan') + '</button>' +
+         '<button class="refresh" onclick="refresh(this)" title="Muat ulang">↻</button></div></header>';
+
+    if (STALE) h += '<div class="stale">' + esc(STALE) + '</div>';
+
+    // Total saldo (semua mata uang, dalam NT$)
+    if (!k.error && k.totalAsetTwd != null) {
+      h += '<div class="card total"><div><div class="lbl">Total saldo saat ini (dalam NT$)</div>' +
+           '<div class="big">' + sal('≈ NT$ ' + fmt(k.totalAsetTwd)) + '</div></div>' +
+           '<div class="parts">' + sal('NT$ ' + fmt(k.saldo.TWD) + ' + Rp ' + fmt(k.saldo.IDR) + ' <span>(≈ NT$ ' + fmt(k.idrDalamTwd) + ')</span>') +
+           '<br><span>Kurs: 1 NT$ = Rp ' + k.kursTwdIdr.toLocaleString('en-US') + '</span></div></div>';
+    }
+
+    // KPI
+    h += '<div class="grid kpis">';
+    if (!k.error) {
+      var lalu = k.bulanLalu.TWD.keluar, ini = k.bulanIni.TWD.keluar;
+      var tren = lalu ? Math.round(100 * (ini - lalu) / lalu) : null;
+      h += kpiCard('Saldo NT$', sal('NT$ ' + fmt(k.saldo.TWD)), 'Hari ini keluar NT$ ' + fmt(k.hariIni.TWD));
+      h += kpiCard('Saldo Rupiah', sal('Rp ' + fmt(k.saldo.IDR)), k.idrDalamTwd != null && !HIDE ? '≈ NT$ ' + fmt(k.idrDalamTwd) : '');
+      h += kpiCard('Keluar ' + esc(k.namaBulan), 'NT$ ' + fmt(ini),
+        'Rata-rata NT$ ' + fmt(k.rataHarianTwd) + '/hari' + (tren != null ? ' · <span class="' + (tren > 0 ? 'up' : 'down') + '">' + (tren > 0 ? '▲' : '▼') + Math.abs(tren) + '%</span> vs bln lalu' : ''));
+    } else {
+      h += '<div class="card" style="grid-column:span 3">' + errBox(k) + '</div>';
+    }
+    if (!td.error) {
+      h += kpiCard('Tugas aktif', fmt(td.jumlahAktif),
+        (td.terlambat ? '<span class="up">' + td.terlambat + ' terlambat</span> · ' : '') + td.hariIni + ' deadline hari ini');
+    } else h += '<div class="card">' + errBox(td) + '</div>';
+    h += '</div>';
+
+    // Hari ini
+    h += '<h2>Hari ini</h2><div class="grid two">';
+    h += '<div class="card"><h3>📅 Jadwal <small>' + today.jadwal.length + ' kegiatan</small></h3>';
+    h += today.jadwal.length ? '<ul class="list">' + today.jadwal.map(function (j) {
+      return '<li><span class="time">' + esc(j.jam || '—') + '</span><div class="grow"><div class="t">' + esc(j.kegiatan) + '</div>' +
+             (j.catatan ? '<div class="m">' + esc(j.catatan) + '</div>' : '') + '</div></li>';
+    }).join('') + '</ul>' : '<div class="empty">Tidak ada jadwal hari ini. 🎉</div>';
+    if (d.jadwalError) h += '<div class="err">Gagal membaca jadwal: ' + esc(d.jadwalError) + '</div>';
+    h += '</div>';
+
+    var urgent = td.open ? td.open.filter(function (t) { return t.terlambat || t.label === 'Hari ini'; }) : [];
+    var next = td.open ? td.open.filter(function (t) { return !t.terlambat && t.label !== 'Hari ini'; }).slice(0, Math.max(0, 5 - urgent.length)) : [];
+    h += '<div class="card"><h3>✅ Tugas <small>terlambat, hari ini & berikutnya</small></h3>';
+    if (td.error) h += errBox(td);
+    else if (!urgent.length && !next.length) h += '<div class="empty">Semua tugas beres. 🙌</div>';
+    else h += '<ul class="list">' + urgent.concat(next).map(taskLi).join('') + '</ul>';
+    h += '</div></div>';
+
+    // 7 hari
+    h += '<h2>7 hari ke depan</h2><div class="week">';
+    (d.minggu || []).forEach(function (day) {
+      var n = day.jadwal.length + day.deadline.length;
+      h += '<div class="day' + (day.isToday ? ' today' : '') + '"><div class="dh"><span>' + (day.isToday ? 'Hari ini' : esc(day.label)) + '</span>' +
+           '<span class="busy">' + (n ? n + ' item' : '') + '</span></div>';
+      day.jadwal.forEach(function (j) { h += '<div class="ev j"><b>' + esc(j.jam) + '</b> ' + esc(j.kegiatan) + '</div>'; });
+      day.deadline.forEach(function (t) { h += '<div class="ev d"><b>⏰</b> ' + esc(t.tugas) + '</div>'; });
+      if (!n) h += '<div class="empty">Kosong</div>';
+      h += '</div>';
+    });
+    h += '</div>';
+
+    // Keuangan
+    if (!k.error) {
+      h += '<h2>Keuangan</h2><div class="grid two">';
+      var max = Math.max.apply(null, k.daily.map(function (x) { return x.v; }).concat([1]));
+      h += '<div class="card"><h3>Pengeluaran 30 hari <small>NT$ per hari</small></h3><div class="bars">' +
+        k.daily.map(function (x, i) {
+          return '<div class="b' + (x.v ? '' : ' zero') + (i === k.daily.length - 1 ? ' today' : '') + '" style="height:' + (x.v ? Math.max(4, 100 * x.v / max) : 2) + '%" data-tip="' + x.label + ': NT$ ' + fmt(x.v) + '"></div>';
+        }).join('') + '</div><div class="axis"><span>' + k.daily[0].label + '</span><span>' + k.daily[15].label + '</span><span>Hari ini</span></div></div>';
+
+      h += '<div class="card"><h3>Kategori ' + esc(k.namaBulan) + ' <small>pengeluaran NT$</small></h3>' + hbars(k.kategoriTwd, 'var(--blue)', 'NT$ ');
+      if (k.kategoriIdr.length) h += '<div style="margin-top:12px" class="sub">Rupiah</div>' + hbars(k.kategoriIdr, 'var(--violet)', 'Rp ');
+      h += '</div></div>';
+
+      h += '<div class="card" style="margin-top:12px"><h3>Transaksi terakhir</h3><ul class="list">' + k.terakhir.map(function (t) {
+        var sym = t.cur === 'IDR' ? 'Rp ' : 'NT$ ';
+        return '<li><div class="grow"><div class="t">' + esc(t.ket || cap(t.kategori)) + '</div><div class="m">' + esc(t.waktu) + ' · ' + esc(cap(t.kategori)) + '</div></div>' +
+               '<span class="tx-amt ' + (t.keluar ? 'up' : 'down') + '">' + (t.keluar ? '−' : '+') + sym + fmt(t.nominal) + '</span></li>';
+      }).join('') + '</ul></div>';
+    }
+
+    // Produktivitas
+    if (!td.error) {
+      h += '<h2>Produktivitas</h2><div class="grid two">';
+      var mx = Math.max.apply(null, td.mingguan.map(function (x) { return x.v; }).concat([1]));
+      h += '<div class="card"><h3>Tugas selesai per minggu <small>total ' + td.selesaiTotal + '</small></h3><div class="bars" style="gap:10px">' +
+        td.mingguan.map(function (x, i) {
+          return '<div class="b' + (x.v ? '' : ' zero') + (i === td.mingguan.length - 1 ? ' today' : '') + '" style="background:' + (i === td.mingguan.length - 1 ? 'var(--violet)' : 'var(--green)') + ';height:' + (x.v ? Math.max(6, 100 * x.v / mx) : 2) + '%" data-tip="' + esc(x.label) + ': ' + x.v + ' tugas"></div>';
+        }).join('') + '</div><div class="axis"><span>' + esc(td.mingguan[0].label) + '</span><span>Minggu ini</span></div></div>';
+
+      var pct = td.tepatWaktu, r = 30, C = 2 * Math.PI * r;
+      h += '<div class="card"><h3>Ringkasan tugas</h3>';
+      h += '<div class="ring"><svg width="76" height="76" viewBox="0 0 76 76"><circle cx="38" cy="38" r="' + r + '" fill="none" stroke="var(--line)" stroke-width="8"/>' +
+        (pct != null ? '<circle cx="38" cy="38" r="' + r + '" fill="none" stroke="var(--green)" stroke-width="8" stroke-linecap="round" stroke-dasharray="' + (C * pct / 100) + ' ' + C + '" transform="rotate(-90 38 38)"/>' : '') +
+        '<text x="38" y="43" text-anchor="middle" font-size="16" font-weight="700" fill="var(--text)">' + (pct != null ? pct + '%' : '–') + '</text></svg>' +
+        '<div><b>Selesai tepat waktu</b><div class="sub">' + (pct != null ? 'dari tugas yang punya deadline' : 'Belum ada tugas selesai yang punya deadline') + '</div></div></div>';
+      h += '<div style="margin-top:12px" class="sub">Tugas aktif per kategori</div>' + hbars(td.perKategori, 'var(--amber)', '');
+      h += '</div></div>';
+    }
+
+    h += '<footer><span class="live"></span>Otomatis diperbarui · terakhir dicek <span id="cek">' + esc(d.generated) + '</span> · <a href="#" onclick="showSetup();return false">Ganti koneksi</a></footer>';
+    document.getElementById('app').innerHTML = h;
+  }
+
+  function showSetup(msg) {
+    document.getElementById('app').innerHTML =
+      '<div class="card setup"><h1 style="font-size:20px">📊 Dashboard</h1>' +
+      '<div class="sub" style="margin-top:4px">Hubungkan aplikasi ini ke data kamu. Cukup sekali; tersimpan di perangkat ini.</div>' +
+      (msg ? '<div class="err">' + esc(msg) + '</div>' : '') +
+      '<label>URL web app Apps Script (berakhiran /exec)</label><input id="f-url" inputmode="url" autocomplete="off" value="' + esc(CFG.url) + '" placeholder="https://script.google.com/macros/s/…/exec">' +
+      '<label>Kode rahasia</label><input id="f-token" type="password" autocomplete="off" value="' + esc(CFG.token) + '">' +
+      '<button onclick="saveSetup(this)">Hubungkan</button></div>';
+  }
+  function saveSetup(btn) {
+    CFG = { url: document.getElementById('f-url').value.trim(), token: document.getElementById('f-token').value.trim() };
+    if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(CFG.url)) { showSetup('URL harus diawali https://script.google.com/ dan diakhiri /exec'); return; }
+    btn.disabled = true; btn.textContent = 'Menghubungkan…';
+    api().then(function (d) {
+      try { localStorage.setItem('dashCfg', JSON.stringify(CFG)); } catch (e) {}
+      STALE = ''; keep(d); render(d);
+    }).catch(function (e) { showSetup(explain(e)); });
+  }
+  function explain(e) {
+    if (e && e.message === 'unauthorized') return 'Kode rahasia salah atau belum dibuat (jalankan buatToken di Apps Script).';
+    return 'Tidak bisa terhubung. Periksa URL, koneksi internet, dan pastikan deployment di-set "Anyone".';
+  }
+
+  function refresh(btn) {
+    btn.disabled = true; btn.textContent = '…';
+    load(true);
+  }
+
+  // ====== MUAT DATA + AUTO REFRESH (tiap 30 detik selama aplikasi terlihat) ======
+  var POLL_MS = 30000, polling = false;
+  function sig(d) { var c = JSON.parse(JSON.stringify(d)); delete c.generated; return JSON.stringify(c); }
+  function load(force) {
+    if (polling || !CFG.url || (document.hidden && !force)) return;
+    polling = true;
+    api().then(function (d) {
+      polling = false;
+      var wasStale = !!STALE; STALE = '';
+      if (force || wasStale || !DATA || sig(d) !== sig(DATA)) {
+        var w = document.querySelector('.week'), sx = w ? w.scrollLeft : 0, sy = window.scrollY;
+        keep(d); render(d);
+        w = document.querySelector('.week'); if (w) w.scrollLeft = sx;
+        window.scrollTo(0, sy);
+      } else {
+        var el = document.getElementById('cek'); if (el) el.textContent = d.generated;
+      }
+    }).catch(function (e) {
+      polling = false;
+      if (e && e.message === 'unauthorized') { showSetup(explain(e)); return; }
+      if (DATA) { STALE = 'Sedang offline atau gagal memuat — menampilkan data terakhir (' + DATA.todayLabel + ' ' + DATA.generated + ').'; render(DATA); }
+      else showSetup(explain(e));
+    });
+  }
+  setInterval(function () { load(false); }, POLL_MS);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) load(false); });
+
+  // Mulai: tampilkan data terakhir yang tersimpan dulu supaya langsung terbuka, lalu ambil yang terbaru.
+  if (!CFG.url) showSetup();
+  else {
+    try { var last = JSON.parse(localStorage.getItem('dashData')); if (last && last.minggu) render(last); } catch (e) {}
+    if (!DATA) document.getElementById('app').innerHTML = '<div class="sub" style="padding:40px 0;text-align:center">Memuat…</div>';
+    load(true);
+  }
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+</script>
+</body>
+</html>
