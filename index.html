@@ -51,6 +51,11 @@
                   background: var(--blue); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
   .stale { background: var(--amber-soft); color: var(--amber); border-radius: 10px; padding: 8px 12px; font-size: 12px; margin-bottom: 12px; }
   footer a { color: var(--muted); }
+  footer { line-height: 2; }
+  #toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px);
+           background: var(--text); color: var(--card); padding: 9px 14px; border-radius: 10px; font-size: 13px;
+           opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; max-width: 86vw; text-align: center; z-index: 9; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
   header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
   h1 { font-size: 22px; margin: 0; letter-spacing: -.2px; }
   .sub { color: var(--muted); font-size: 13px; }
@@ -150,15 +155,69 @@
   var PRIO = { Tinggi: 'p-red', Sedang: 'p-amber', Rendah: 'p-green' };
   var PRIO_DOT = { Tinggi: 'var(--red)', Sedang: 'var(--amber)', Rendah: 'var(--green)' };
 
-  var HIDE = false;
-  try { HIDE = localStorage.getItem('hideSaldo') === '1'; } catch (e) {}
-  // Nilai saldo: disamarkan kalau mode sembunyi aktif
+  // ====== SEMBUNYIKAN SALDO + KUNCI BIOMETRIK ======
+  // LOCK = ID kredensial sidik jari/wajah yang didaftarkan di perangkat ini (kosong = kunci tidak aktif).
+  var HIDE = false, LOCK = '';
+  try { HIDE = localStorage.getItem('hideSaldo') === '1'; LOCK = localStorage.getItem('dashLock') || ''; } catch (e) {}
+  if (LOCK) HIDE = true;                      // kalau kunci aktif, saldo selalu tersembunyi saat aplikasi dibuka
+
   function sal(text) { return HIDE ? '••••••' : text; }
+  function bioSupported() { return !!(window.isSecureContext && window.PublicKeyCredential && navigator.credentials); }
+  function rnd(n) { var a = new Uint8Array(n); crypto.getRandomValues(a); return a; }
+  function toB64(buf) { var b = new Uint8Array(buf), t = ''; for (var i = 0; i < b.length; i++) t += String.fromCharCode(b[i]); return btoa(t); }
+  function fromB64(t) { var r = atob(t), a = new Uint8Array(r.length); for (var i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; }
+
+  // Minta sidik jari / wajah / PIN layar. Berhasil hanya kalau perangkat memverifikasi pemiliknya.
+  function bioVerify() {
+    return navigator.credentials.get({ publicKey: {
+      challenge: rnd(32), timeout: 60000, userVerification: 'required',
+      allowCredentials: [{ type: 'public-key', id: fromB64(LOCK), transports: ['internal'] }]
+    } });
+  }
+  function bioRegister() {
+    return navigator.credentials.create({ publicKey: {
+      challenge: rnd(32), rp: { name: 'Dashboard' },
+      user: { id: rnd(16), name: 'dashboard', displayName: 'Dashboard' },
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
+      timeout: 60000, attestation: 'none'
+    } });
+  }
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    if (!t) { t = document.createElement('div'); t.id = 'toast'; document.body.appendChild(t); }
+    t.textContent = msg; t.className = 'show';
+    clearTimeout(toast._t); toast._t = setTimeout(function () { t.className = ''; }, 2600);
+  }
+
   function toggleHide() {
+    if (HIDE && LOCK) {                       // menampilkan saldo butuh verifikasi
+      bioVerify().then(function () { HIDE = false; render(DATA); })
+                 .catch(function () { toast('Verifikasi dibatalkan atau gagal'); });
+      return;
+    }
     HIDE = !HIDE;
-    try { localStorage.setItem('hideSaldo', HIDE ? '1' : '0'); } catch (e) {}
+    if (!LOCK) { try { localStorage.setItem('hideSaldo', HIDE ? '1' : '0'); } catch (e) {} }
     render(DATA);
   }
+  function toggleLock() {
+    if (!bioSupported()) { toast('Perangkat/browser ini tidak mendukung kunci biometrik'); return; }
+    if (LOCK) {                               // mematikan kunci juga butuh verifikasi
+      bioVerify().then(function () {
+        LOCK = ''; try { localStorage.removeItem('dashLock'); } catch (e) {}
+        toast('Kunci biometrik dimatikan'); render(DATA);
+      }).catch(function () { toast('Verifikasi dibatalkan atau gagal'); });
+    } else {
+      bioRegister().then(function (c) {
+        LOCK = toB64(c.rawId); try { localStorage.setItem('dashLock', LOCK); } catch (e) {}
+        HIDE = true; toast('Kunci biometrik aktif'); render(DATA);
+      }).catch(function () { toast('Gagal mengaktifkan. Pastikan sidik jari/kunci layar sudah diatur di HP.'); });
+    }
+  }
+  // Kunci lagi otomatis begitu aplikasi ditinggalkan
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden && LOCK && !HIDE && DATA) { HIDE = true; render(DATA); }
+  });
 
   // ====== TEMA ======
   function theme() { return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'; }
@@ -228,7 +287,7 @@
     var sapa = jam < 11 ? 'Selamat pagi' : jam < 15 ? 'Selamat siang' : jam < 18 ? 'Selamat sore' : 'Selamat malam';
     h += '<header><div><div class="sub">' + esc(d.todayLabel) + '</div><h1>' + sapa + ' 👋</h1></div>' +
          '<div class="actions"><button class="refresh" onclick="toggleTheme()" title="Ganti tema terang / gelap">' + (theme() === 'dark' ? '☀️' : '🌙') + '<span class="hide-sm">' + (theme() === 'dark' ? ' Terang' : ' Gelap') + '</span></button>' +
-         '<button class="refresh" onclick="toggleHide()" title="Sembunyikan / tampilkan saldo">' + (HIDE ? '👁' : '🙈') + '<span class="hide-sm">' + (HIDE ? ' Tampilkan' : ' Sembunyikan') + '</span></button>' +
+         '<button class="refresh" onclick="toggleHide()" title="Sembunyikan / tampilkan saldo">' + (HIDE ? (LOCK ? '🔒' : '👁') : '🙈') + '<span class="hide-sm">' + (HIDE ? (LOCK ? ' Buka saldo' : ' Tampilkan') : ' Sembunyikan') + '</span></button>' +
          '<button class="refresh" onclick="refresh(this)" title="Muat ulang">↻</button></div></header>';
 
     if (STALE) h += '<div class="stale">' + esc(STALE) + '</div>';
@@ -306,7 +365,7 @@
       h += '<div class="card" style="margin-top:12px"><h3>Transaksi terakhir</h3><ul class="list">' + k.terakhir.map(function (t) {
         var sym = t.cur === 'IDR' ? 'Rp ' : 'NT$ ';
         return '<li><div class="grow"><div class="t">' + esc(t.ket || cap(t.kategori)) + '</div><div class="m">' + esc(t.waktu) + ' · ' + esc(cap(t.kategori)) + '</div></div>' +
-               '<span class="tx-amt ' + (t.keluar ? 'up' : 'down') + '">' + (t.keluar ? '−' : '+') + sym + fmt(t.nominal) + '</span></li>';
+               '<span class="tx-amt ' + (t.keluar ? 'up' : 'down') + '">' + ((HIDE && LOCK) ? '••••' : (t.keluar ? '−' : '+') + sym + fmt(t.nominal)) + '</span></li>';
       }).join('') + '</ul></div>';
     }
 
@@ -329,7 +388,8 @@
       h += '</div></div>';
     }
 
-    h += '<footer><span class="live"></span>Otomatis diperbarui · terakhir dicek <span id="cek">' + esc(d.generated) + '</span> · <a href="#" onclick="showSetup();return false">Ganti koneksi</a></footer>';
+    h += '<footer><span class="live"></span>Otomatis diperbarui · terakhir dicek <span id="cek">' + esc(d.generated) + '</span> · <a href="#" onclick="showSetup();return false">Ganti koneksi</a>' +
+         (bioSupported() ? ' · <a href="#" onclick="toggleLock();return false">' + (LOCK ? '🔒 Kunci biometrik: aktif' : '🔓 Aktifkan kunci biometrik') + '</a>' : '') + '</footer>';
     document.getElementById('app').innerHTML = h;
     reveal();
   }
