@@ -365,7 +365,7 @@
       h += '<div class="card" style="margin-top:12px"><h3>Transaksi terakhir</h3><ul class="list">' + k.terakhir.map(function (t) {
         var sym = t.cur === 'IDR' ? 'Rp ' : 'NT$ ';
         return '<li><div class="grow"><div class="t">' + esc(t.ket || cap(t.kategori)) + '</div><div class="m">' + esc(t.waktu) + ' · ' + esc(cap(t.kategori)) + '</div></div>' +
-               '<span class="tx-amt ' + (t.keluar ? 'up' : 'down') + '">' + ((HIDE && LOCK) ? '••••' : (t.keluar ? '−' : '+') + sym + fmt(t.nominal)) + '</span></li>';
+               '<span class="tx-amt ' + (t.keluar ? 'up' : 'down') + '">' + (t.keluar ? '−' : '+') + sym + fmt(t.nominal) + '</span></li>';
       }).join('') + '</ul></div>';
     }
 
